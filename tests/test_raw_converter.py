@@ -1,6 +1,9 @@
 """Tests for RAW image conversion without real RAW fixtures."""
 
+import builtins
+import importlib
 from pathlib import Path
+import sys
 from typing import Any
 
 import numpy as np
@@ -8,6 +11,7 @@ import pytest
 from PIL import Image
 
 from app.converters import raw_converter
+from app.converters.image_converter import ImageConverter
 from app.converters.raw_converter import RawConverter
 
 
@@ -54,7 +58,10 @@ def test_convert_raw_to_jpg_uses_rawpy_postprocess(
         assert path == str(tmp_path / "photo.nef")
         return fake_raw
 
-    monkeypatch.setattr(raw_converter.rawpy, "imread", fake_imread)
+    class FakeRawpy:
+        imread = staticmethod(fake_imread)
+
+    monkeypatch.setattr(raw_converter, "_load_rawpy", lambda: FakeRawpy)
 
     input_path = tmp_path / "photo.nef"
     output_path = tmp_path / "photo.jpg"
@@ -79,3 +86,60 @@ def test_convert_raw_to_jpg_uses_rawpy_postprocess(
 def test_raw_to_webp_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="RAW to WEBP is not supported"):
         RawConverter().convert(tmp_path / "photo.nef", tmp_path / "photo.webp", {})
+
+
+def test_raw_converter_module_import_does_not_require_rawpy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = builtins.__import__
+
+    def import_without_rawpy(name: str, *args: object, **kwargs: object):
+        if name == "rawpy":
+            raise ImportError("rawpy intentionally hidden")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_rawpy)
+    sys.modules.pop("app.converters.raw_converter", None)
+
+    imported = importlib.import_module("app.converters.raw_converter")
+
+    assert imported.RawConverter().supports_input(Path("photo.nef")) is True
+
+
+def test_raw_conversion_without_rawpy_returns_clear_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = builtins.__import__
+
+    def import_without_rawpy(name: str, *args: object, **kwargs: object):
+        if name == "rawpy":
+            raise ImportError("rawpy intentionally hidden")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_rawpy)
+
+    with pytest.raises(RuntimeError, match="RAW conversion requires rawpy"):
+        RawConverter().convert(tmp_path / "photo.nef", tmp_path / "photo.jpg", {})
+
+
+def test_regular_image_conversion_works_when_rawpy_is_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = builtins.__import__
+
+    def import_without_rawpy(name: str, *args: object, **kwargs: object):
+        if name == "rawpy":
+            raise ImportError("rawpy intentionally hidden")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_rawpy)
+    input_path = tmp_path / "source.png"
+    output_path = tmp_path / "converted.jpg"
+    Image.new("RGB", (8, 8), (10, 20, 30)).save(input_path)
+
+    ImageConverter().convert(input_path, output_path, {})
+
+    with Image.open(output_path) as result:
+        assert result.format == "JPEG"

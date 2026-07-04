@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import rawpy
 from PIL import Image
 
 from app.converters.base import BaseConverter
@@ -55,6 +54,7 @@ class RawConverter(BaseConverter):
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+        rawpy = _load_rawpy()
         with rawpy.imread(str(input_path)) as raw:
             rgb = raw.postprocess(
                 use_camera_wb=True,
@@ -71,3 +71,13 @@ class RawConverter(BaseConverter):
             save_options["quality"] = quality
 
         image.save(output_path, **save_options)
+
+
+def _load_rawpy():
+    try:
+        import rawpy
+    except ImportError as exc:
+        raise RuntimeError(
+            "RAW conversion requires rawpy. Install it with: pip install rawpy"
+        ) from exc
+    return rawpy

@@ -20,6 +20,11 @@ class ConverterRegistry:
             RawConverter(),
         ]
 
+    @classmethod
+    def default(cls) -> "ConverterRegistry":
+        """Create the default MVP converter registry."""
+        return cls()
+
     def get_converter(self, input_path: Path) -> BaseConverter:
         """Return the first converter that supports input_path."""
         for converter in self._converters:

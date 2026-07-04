@@ -63,6 +63,18 @@ Dependencies:
 - `numpy` for RAW image arrays.
 - `pytest` for tests.
 
+For regular JPG/PNG/WEBP/TIFF conversion, Pillow is enough. `rawpy` is loaded lazily and is only required when converting RAW files. If `rawpy` is not installed, regular image conversion still works, but RAW conversion will report a clear error:
+
+```text
+RAW conversion requires rawpy. Install it with: pip install rawpy
+```
+
+Use the full install command for complete MVP functionality:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
 ## Usage
 
 Convert a single RAW file to JPG:
@@ -125,7 +137,7 @@ python -m app.main --input "D:/Photos" --output "D:/Converted" --to jpg --verbos
 ## Behavior
 
 - Regular image conversion uses Pillow.
-- RAW conversion uses `rawpy`.
+- RAW conversion uses `rawpy`, loaded only when a RAW file is actually converted.
 - EXIF Orientation is normalized for regular images with `ImageOps.exif_transpose`.
 - PNG transparency is flattened onto a white background when saving to JPG/JPEG.
 - JPG/JPEG output is saved as `RGB`.
@@ -166,7 +178,11 @@ The project is organized around a shared converter interface:
 - `app/converters/image_converter.py` implements regular image conversion.
 - `app/converters/raw_converter.py` implements RAW conversion.
 - `app/converters/registry.py` selects the right converter.
-- `app/core/` contains scanning, path handling, config, and job result utilities.
+- `app/core/conversion_options.py` defines `ConversionOptions`.
+- `app/core/conversion_service.py` contains the shared conversion pipeline.
+- `app/core/` also contains scanning, path handling, config, and job result utilities.
+
+CLI and future GUI use the same conversion core through `ConversionService`. The current `app/main.py` is a thin CLI layer that parses arguments, builds `ConversionOptions`, configures logging, calls `ConversionService`, and prints the final summary. A future PySide6 GUI can call the same service instead of duplicating conversion logic.
 
 To add a new converter later, implement `BaseConverter`, register it in `ConverterRegistry`, and add focused tests for supported input/output behavior.
 

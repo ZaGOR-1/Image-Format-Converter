@@ -8,6 +8,8 @@ import pytest
 from PIL import Image
 
 from app import main as cli
+from app.core.conversion_options import ConversionOptions
+from app.core.job_result import JobResult
 
 
 def test_main_converts_single_file(tmp_path: Path) -> None:
@@ -208,3 +210,40 @@ def test_batch_continues_after_one_bad_file(
     assert (output_dir / "good.jpg").exists()
     assert "Failed 1/2: bad.jpg" in logs
     assert f"Failure reason for {bad_file}" in logs
+
+
+def test_cli_run_conversion_uses_conversion_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = tmp_path / "source.png"
+    input_path.write_bytes(b"placeholder")
+    captured_options: list[ConversionOptions] = []
+
+    class FakeConversionService:
+        def run(self, options: ConversionOptions, **kwargs: object) -> JobResult:
+            captured_options.append(options)
+            return JobResult(total_found=1, converted=1)
+
+    monkeypatch.setattr(cli, "ConversionService", FakeConversionService)
+    args = cli.parse_args(
+        [
+            "--input",
+            str(input_path),
+            "--output",
+            str(tmp_path / "out"),
+            "--to",
+            "jpg",
+        ]
+    )
+
+    result = cli.run_conversion(args)
+
+    assert result.converted == 1
+    assert captured_options == [
+        ConversionOptions(
+            input_path=input_path,
+            output_dir=tmp_path / "out",
+            target_format="jpg",
+        )
+    ]
