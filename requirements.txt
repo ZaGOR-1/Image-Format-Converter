@@ -2,3 +2,4 @@ Pillow
 rawpy
 numpy
 pytest
+PySide6

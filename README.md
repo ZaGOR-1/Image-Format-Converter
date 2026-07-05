@@ -1,19 +1,37 @@
 # Image Format Converter MVP
 
-Image Format Converter is a local Python 3.12+ command-line tool for converting image files. MVP v1 focuses on regular image formats and RAW camera files, with a modular converter architecture that can later grow into GUI, audio, video, and document conversion.
+[Українська](README.md) | [English](README.en.md)
 
-This version is intentionally CLI-only. It does not include a GUI, web server, database, or background service.
+**Image Format Converter** — локальний Python 3.12+ застосунок для конвертації зображень. Поточний MVP має два способи запуску:
 
-## Supported Formats
+- CLI через `python -m app.main`;
+- простий GUI на PySide6 через `python -m app.gui_main`.
 
-RAW input formats:
+Проєкт фокусується на конвертації звичайних форматів зображень і RAW-файлів камер. Конвертаційна логіка винесена в спільний `ConversionService`, тому CLI і GUI використовують один pipeline.
+
+У цьому MVP немає web server, database, audio/video/document conversion, готової EXE-збірки або інсталятора.
+
+## Можливості
+
+- Конвертація одного файлу або папки.
+- Опціональне recursive-сканування папок.
+- Збереження структури папок через `--keep-structure`.
+- Безпечна обробка помилок: один поганий файл не зупиняє весь batch.
+- Унікальні імена вихідних файлів, якщо `--overwrite` не увімкнено.
+- Resize зі збереженням пропорцій.
+- GUI з вибором input/output, формату, quality, resize, recursive, overwrite і progress/log секціями.
+- Lazy `rawpy`: GUI і regular conversion стартують без top-level імпорту `rawpy`; RAW-конвертація показує зрозумілу помилку, якщо `rawpy` недоступний.
+
+## Підтримувані формати
+
+RAW input:
 
 - `.nef`
 - `.cr2`
 - `.arw`
 - `.dng`
 
-RAW output formats:
+RAW output:
 
 - `jpg`
 - `jpeg`
@@ -21,9 +39,9 @@ RAW output formats:
 - `tif`
 - `tiff`
 
-RAW to WEBP is not supported in MVP v1.
+RAW to WEBP у поточному MVP не підтримується.
 
-Regular image input formats:
+Regular image input:
 
 - `.jpg`
 - `.jpeg`
@@ -32,7 +50,7 @@ Regular image input formats:
 - `.tif`
 - `.tiff`
 
-Regular image output formats:
+Regular image output:
 
 - `jpg`
 - `jpeg`
@@ -41,156 +59,178 @@ Regular image output formats:
 - `tif`
 - `tiff`
 
-## Installation
+## Встановлення
 
-Create and activate a virtual environment:
+Створити й активувати virtual environment:
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 ```
 
-Install dependencies:
+Встановити залежності:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Dependencies:
+Залежності:
 
-- `Pillow` for regular image conversion.
-- `rawpy` for RAW camera files.
-- `numpy` for RAW image arrays.
-- `pytest` for tests.
+- `Pillow` для звичайних зображень.
+- `rawpy` для RAW-файлів.
+- `numpy` для RAW image arrays.
+- `PySide6` для GUI.
+- `pytest` для тестів.
 
-For regular JPG/PNG/WEBP/TIFF conversion, Pillow is enough. `rawpy` is loaded lazily and is only required when converting RAW files. If `rawpy` is not installed, regular image conversion still works, but RAW conversion will report a clear error:
+Для JPG/PNG/WEBP/TIFF конвертації достатньо Pillow. `rawpy` завантажується lazy і потрібен тільки під час RAW-конвертації. Якщо `rawpy` недоступний, звичайна конвертація продовжить працювати, а RAW-конвертація поверне помилку:
 
 ```text
 RAW conversion requires rawpy. Install it with: pip install rawpy
 ```
 
-Use the full install command for complete MVP functionality:
+## Запуск GUI
 
 ```bash
-python -m pip install -r requirements.txt
+python -m app.gui_main
 ```
 
-## Usage
+У GUI:
 
-Convert a single RAW file to JPG:
+1. Виберіть input file або input folder.
+2. Виберіть output folder.
+3. Виберіть target format.
+4. Налаштуйте quality, resize, recursive, keep structure або overwrite.
+5. Натисніть `Convert`.
+
+Конвертація у GUI виконується у worker thread, тому вікно не має зависати під час batch conversion. Progress і log оновлюються через callbacks із `ConversionService`.
+
+## CLI приклади
+
+Конвертація одного RAW-файлу в JPG:
 
 ```bash
 python -m app.main --input "D:/Photos/photo.nef" --output "D:/Converted" --to jpg --quality 92
 ```
 
-Convert all supported files in a folder:
+Конвертація всіх підтримуваних файлів у папці:
 
 ```bash
 python -m app.main --input "D:/Photos" --output "D:/Converted" --to jpg --quality 90
 ```
 
-Convert a folder recursively and preserve the folder structure:
+Recursive-конвертація зі збереженням структури:
 
 ```bash
 python -m app.main --input "D:/Photos" --output "D:/Converted" --to png --recursive --keep-structure
 ```
 
-Convert regular images to WEBP and overwrite existing files:
+WEBP з overwrite:
 
 ```bash
 python -m app.main --input "D:/Photos" --output "D:/Converted" --to webp --quality 85 --overwrite
 ```
 
-Resize while preserving aspect ratio:
+Resize зі збереженням пропорцій:
 
 ```bash
 python -m app.main --input "D:/Photos" --output "D:/Converted" --to jpg --resize-width 1600
 ```
 
-Fit inside a box without distortion:
+Fit inside box без distortion:
 
 ```bash
 python -m app.main --input "D:/Photos" --output "D:/Converted" --to jpg --resize-width 1600 --resize-height 1200
 ```
 
-Enable detailed logs:
+Verbose logs:
 
 ```bash
 python -m app.main --input "D:/Photos" --output "D:/Converted" --to jpg --verbose
 ```
 
-## CLI Arguments
+## CLI аргументи
 
-| Argument | Description |
+| Аргумент | Опис |
 | --- | --- |
-| `--input` | Path to an input file or folder. Required. |
-| `--output` | Output folder. Required. Created automatically when possible. |
-| `--to` | Target format: `jpg`, `jpeg`, `png`, `webp`, `tif`, or `tiff`. Required. |
-| `--quality` | JPEG/WebP quality from `1` to `100`. Default: `92`. |
-| `--recursive` | Scan nested folders when input is a directory. |
-| `--overwrite` | Overwrite existing output files. Without this flag, unique names such as `photo_1.jpg` are generated. |
-| `--keep-structure` | Preserve input folder structure inside the output directory. Useful with `--recursive`. |
-| `--resize-width` | Resize to this width while preserving aspect ratio. |
-| `--resize-height` | Resize to this height while preserving aspect ratio. |
-| `--verbose` | Show detailed file-by-file logs, output paths, and failure reasons. |
+| `--input` | Шлях до input file або folder. Обов'язковий. |
+| `--output` | Output folder. Обов'язковий. Створюється автоматично, якщо можливо. |
+| `--to` | Target format: `jpg`, `jpeg`, `png`, `webp`, `tif`, `tiff`. Обов'язковий. |
+| `--quality` | JPEG/WebP quality від `1` до `100`. Default: `92`. |
+| `--recursive` | Сканувати вкладені папки, якщо input є папкою. |
+| `--overwrite` | Перезаписувати існуючі output files. Без цього прапорця генеруються імена на кшталт `photo_1.jpg`. |
+| `--keep-structure` | Зберігати структуру input folders всередині output folder. Корисно з `--recursive`. |
+| `--resize-width` | Resize до цієї ширини зі збереженням пропорцій. |
+| `--resize-height` | Resize до цієї висоти зі збереженням пропорцій. |
+| `--verbose` | Детальні console logs: processing, output paths і failure reasons. |
 
-## Behavior
+## Поведінка конвертації
 
-- Regular image conversion uses Pillow.
-- RAW conversion uses `rawpy`, loaded only when a RAW file is actually converted.
-- EXIF Orientation is normalized for regular images with `ImageOps.exif_transpose`.
-- PNG transparency is flattened onto a white background when saving to JPG/JPEG.
-- JPG/JPEG output is saved as `RGB`.
-- PNG preserves transparency where possible.
-- WEBP supports quality settings.
-- TIFF output supports `.tif` and `.tiff`.
-- A failed file does not stop the whole batch. The final summary lists failed files and reasons.
+- Regular image conversion використовує Pillow.
+- RAW conversion використовує `rawpy`, але імпорт відбувається тільки під час RAW-конвертації.
+- EXIF Orientation нормалізується для regular images через `ImageOps.exif_transpose`.
+- PNG transparency flatten-иться на білий фон під час збереження в JPG/JPEG.
+- JPG/JPEG output зберігається як `RGB`.
+- PNG зберігає transparency, коли це можливо.
+- WEBP підтримує quality.
+- TIFF підтримує `.tif` і `.tiff`.
+- Помилка одного файлу не зупиняє весь batch; final summary містить failed files і reasons.
 
-## MVP Limitations
+## Обмеження MVP
 
-- No GUI in MVP v1.
-- No audio, video, or document conversion yet.
-- No web API or web server.
-- No database.
-- RAW files are only converted from RAW to regular image formats.
-- RAW files are not converted back into RAW.
-- RAW to WEBP is rejected in MVP v1.
-- Basic unit tests do not require real RAW files.
-- EXIF support is limited to orientation normalization for regular images.
+- GUI простий і сфокусований на локальній конвертації.
+- Немає audio, video або document conversion.
+- Немає web API або web server.
+- Немає database.
+- Немає persisted conversion history або batch queue.
+- Немає готової EXE-збірки або installer packaging.
+- RAW файли конвертуються тільки з RAW у regular image formats.
+- Конвертація назад у RAW не підтримується.
+- RAW to WEBP не підтримується.
+- EXIF support обмежений orientation normalization для regular images.
+- Базові tests не потребують реальних RAW-файлів.
 
-## Development
+## Розробка
 
-Run tests:
+Запуск тестів:
 
 ```bash
 python -m pytest
 ```
 
-Run the CLI help:
+CLI help:
 
 ```bash
 python -m app.main --help
 ```
 
-The project is organized around a shared converter interface:
+Структура core:
 
-- `app/converters/base.py` defines `BaseConverter`.
-- `app/converters/image_converter.py` implements regular image conversion.
-- `app/converters/raw_converter.py` implements RAW conversion.
-- `app/converters/registry.py` selects the right converter.
-- `app/core/conversion_options.py` defines `ConversionOptions`.
-- `app/core/conversion_service.py` contains the shared conversion pipeline.
-- `app/core/` also contains scanning, path handling, config, and job result utilities.
+- `app/converters/base.py` — `BaseConverter`.
+- `app/converters/image_converter.py` — regular image conversion.
+- `app/converters/raw_converter.py` — RAW conversion.
+- `app/converters/registry.py` — вибір converter.
+- `app/core/conversion_options.py` — `ConversionOptions`.
+- `app/core/conversion_service.py` — спільний conversion pipeline.
+- `app/core/file_scanner.py` — scanning input files.
+- `app/core/path_utils.py` — output paths і unique names.
+- `app/core/job_result.py` — batch result summary.
 
-CLI and future GUI use the same conversion core through `ConversionService`. The current `app/main.py` is a thin CLI layer that parses arguments, builds `ConversionOptions`, configures logging, calls `ConversionService`, and prints the final summary. A future PySide6 GUI can call the same service instead of duplicating conversion logic.
+GUI:
 
-To add a new converter later, implement `BaseConverter`, register it in `ConverterRegistry`, and add focused tests for supported input/output behavior.
+- `app/gui_main.py` — entry point для PySide6 GUI.
+- `app/gui/main_window.py` — layout, validation flow і signal wiring.
+- `app/gui/conversion_worker.py` — worker для запуску `ConversionService` поза UI thread.
+- `app/gui/options_builder.py` — mapping GUI state у `ConversionOptions`.
+- `app/gui/validation.py` — validation form values.
 
-## Future Roadmap
+Щоб додати новий converter у майбутньому, реалізуйте `BaseConverter`, зареєструйте його в `ConverterRegistry` і додайте focused tests.
 
-- GUI with PySide6.
-- Audio conversion through FFmpeg.
-- Presets for web, print, and social media.
+## Roadmap
+
+- Windows EXE packaging через PyInstaller або інший packaging tool.
+- Більш розвинений GUI на PySide6.
+- Audio conversion через FFmpeg.
+- Presets для web, print і social media.
 - Drag-and-drop.
 - Conversion history.
 - Batch queue.

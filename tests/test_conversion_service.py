@@ -86,7 +86,6 @@ def test_conversion_service_emits_log_messages(tmp_path: Path) -> None:
             input_path=input_path,
             output_dir=tmp_path / "out",
             target_format="jpg",
-            verbose=True,
         ),
         on_log=messages.append,
     )

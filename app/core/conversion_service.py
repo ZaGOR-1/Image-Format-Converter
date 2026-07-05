@@ -35,9 +35,8 @@ class ConversionService:
 
         converter_options = _build_converter_options(options)
         for index, input_file in enumerate(input_files, start=1):
-            _emit_verbose(
+            _emit(
                 on_log,
-                options,
                 f"Processing file {index}/{result.total_found}: {input_file}",
             )
             try:
@@ -53,7 +52,7 @@ class ConversionService:
                     keep_structure=options.keep_structure,
                     input_root=options.input_path,
                 )
-                _emit_verbose(on_log, options, f"Output path: {output_path}")
+                _emit(on_log, f"Output path: {output_path}")
                 converter.convert(input_file, output_path, converter_options)
                 result.record_success()
                 _emit(
@@ -63,11 +62,7 @@ class ConversionService:
             except Exception as exc:  # noqa: BLE001 - batch conversion must continue.
                 result.record_failure(input_file, str(exc))
                 _emit(on_log, f"Failed {index}/{result.total_found}: {input_file.name}")
-                _emit_verbose(
-                    on_log,
-                    options,
-                    f"Failure reason for {input_file}: {exc}",
-                )
+                _emit(on_log, f"Failure reason for {input_file}: {exc}")
             finally:
                 if on_progress is not None:
                     on_progress(index, result.total_found, input_file)
@@ -87,11 +82,3 @@ def _emit(on_log: LogCallback | None, message: str) -> None:
     if on_log is not None:
         on_log(message)
 
-
-def _emit_verbose(
-    on_log: LogCallback | None,
-    options: ConversionOptions,
-    message: str,
-) -> None:
-    if options.verbose:
-        _emit(on_log, message)

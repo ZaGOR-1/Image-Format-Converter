@@ -2,9 +2,9 @@
 
 ## Project: Image Format Converter MVP
 
-You are working on a Python CLI MVP project called **Image Format Converter**.
+You are working on a Python image conversion MVP project called **Image Format Converter**.
 
-The goal is to build a clean, maintainable, local command-line tool for converting image formats. The first MVP version focuses only on image conversion, including RAW camera files. The architecture must be prepared for future expansion to audio, video, document converters, and GUI.
+The goal is to build a clean, maintainable, local tool for converting image formats. MVP v1 focused on the CLI. MVP v2 adds a simple PySide6 GUI on top of the same conversion core. The architecture must be prepared for future expansion to audio, video, and document converters.
 
 Do not build a GUI in MVP v1.
 Do not add web server functionality.
@@ -15,7 +15,7 @@ Do not overcomplicate the project.
 
 ## Main Goal
 
-Build a Python 3.12+ CLI application that can:
+Build a Python 3.12+ CLI and GUI application that can:
 
 * Convert RAW camera files to common image formats.
 * Convert common image formats between each other.
@@ -24,6 +24,7 @@ Build a Python 3.12+ CLI application that can:
 * Preserve folder structure when requested.
 * Handle errors safely without crashing the whole batch.
 * Be structured in a modular way so future converters can be added.
+* Provide a simple MVP v2 GUI that reuses the existing conversion core.
 
 ---
 
@@ -86,10 +87,12 @@ Use:
 * `pathlib` for paths
 * `logging` for logs
 * `pytest` for tests
+* `PySide6` for the MVP v2 GUI
 
 Do not use:
 
 * GUI frameworks in MVP v1
+* GUI frameworks other than `PySide6` in MVP v2
 * Flask, FastAPI, Django, or any web framework
 * Database engines
 * Heavy unnecessary dependencies
@@ -106,9 +109,12 @@ Do not create an extra nested `image_converter_mvp/` directory inside this repos
 app/
   __init__.py
   main.py
+  gui_main.py
   core/
     __init__.py
     config.py
+    conversion_options.py
+    conversion_service.py
     file_scanner.py
     job_result.py
     path_utils.py
@@ -118,6 +124,12 @@ app/
     image_converter.py
     raw_converter.py
     registry.py
+  gui/
+    __init__.py
+    main_window.py
+    conversion_worker.py
+    options_builder.py
+    validation.py
 tests/
   test_path_utils.py
   test_file_scanner.py
@@ -130,6 +142,45 @@ README.md
 Keep code separated by responsibility.
 
 Do not place all logic inside `main.py`.
+
+---
+
+## MVP v2 GUI Requirements
+
+The GUI must be runnable like this:
+
+```bash
+python -m app.gui_main
+```
+
+GUI rules:
+
+* GUI must use `ConversionService`.
+* GUI must build `ConversionOptions` from form state.
+* GUI must not duplicate conversion pipeline logic from CLI/core.
+* GUI must not call converters directly from UI code.
+* GUI must not block the UI thread during conversion.
+* Conversion must run through a worker object in a `QThread`.
+* GUI progress and logs must be updated through worker/service callbacks.
+* CLI must remain working and compatible with existing commands.
+* `PySide6` is the only GUI framework allowed for MVP v2.
+* Do not add PyInstaller packaging, themes, plugin systems, web APIs, or persisted job queues in MVP v2.
+
+The GUI should stay a thin layer for:
+
+* selecting input file or folder;
+* selecting output folder;
+* choosing target format;
+* setting quality, resize, recursive, keep-structure, and overwrite options;
+* starting conversion;
+* showing progress, logs, validation messages, and final summary.
+
+RAW behavior in GUI:
+
+* Keep `rawpy` lazy-loaded in `RawConverter`.
+* `python -m app.gui_main` must not require top-level `rawpy` import.
+* Regular JPG/PNG/WEBP/TIFF conversion must work even if `rawpy` is unavailable.
+* RAW conversion without `rawpy` must show a clear error in the GUI log/result instead of crashing the app.
 
 ---
 
@@ -473,6 +524,7 @@ Pillow
 rawpy
 numpy
 pytest
+PySide6
 ```
 
 Do not add unnecessary dependencies.
