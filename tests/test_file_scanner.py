@@ -54,6 +54,31 @@ def test_scan_directory_recursively_includes_nested_files(tmp_path: Path) -> Non
     assert scan_files(tmp_path, recursive=True) == [nested, top_level]
 
 
+def test_scan_directory_excludes_requested_output_tree(tmp_path: Path) -> None:
+    source = tmp_path / "source.png"
+    output_dir = tmp_path / "out"
+    output_file = output_dir / "old.png"
+    output_dir.mkdir()
+    source.write_bytes(b"placeholder")
+    output_file.write_bytes(b"placeholder")
+
+    assert scan_files(tmp_path, recursive=True, exclude_dirs=[output_dir]) == [source]
+
+
+def test_scan_directory_does_not_follow_symlink_directories(tmp_path: Path) -> None:
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+    nested = target_dir / "nested.jpg"
+    nested.write_bytes(b"placeholder")
+    link_dir = tmp_path / "link"
+    try:
+        link_dir.symlink_to(target_dir, target_is_directory=True)
+    except OSError:
+        pytest.skip("Directory symlinks are not available in this environment.")
+
+    assert scan_files(tmp_path, recursive=True) == [nested]
+
+
 def test_scan_directory_returns_empty_list_when_iterdir_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

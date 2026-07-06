@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from app.gui.validation import validate_conversion_form
 
 
@@ -22,7 +24,7 @@ def test_validate_conversion_form_accepts_valid_values(tmp_path: Path) -> None:
     )
 
     assert errors == []
-    assert output_dir.is_dir()
+    assert not output_dir.exists()
 
 
 def test_validate_conversion_form_requires_input_path(tmp_path: Path) -> None:
@@ -35,7 +37,7 @@ def test_validate_conversion_form_requires_input_path(tmp_path: Path) -> None:
         resize_height=0,
     )
 
-    assert "Input path is required." in errors
+    assert "Input шлях обов'язковий." in errors
 
 
 def test_validate_conversion_form_requires_existing_input(
@@ -52,7 +54,7 @@ def test_validate_conversion_form_requires_existing_input(
         resize_height=0,
     )
 
-    assert f"Input path does not exist: {missing}" in errors
+    assert f"Input шлях не існує: {missing}" in errors
 
 
 def test_validate_conversion_form_requires_output_folder() -> None:
@@ -65,32 +67,27 @@ def test_validate_conversion_form_requires_output_folder() -> None:
         resize_height=0,
     )
 
-    assert "Output folder is required." in errors
+    assert "Output папка обов'язкова." in errors
 
 
-def test_validate_conversion_form_reports_output_creation_error(
+def test_validate_conversion_form_rejects_file_as_output_folder(
     tmp_path: Path,
-    monkeypatch,
 ) -> None:
     input_path = tmp_path / "source.png"
+    output_file = tmp_path / "out.txt"
     input_path.write_bytes(b"placeholder")
-
-    def raise_os_error(self: Path, *args: object, **kwargs: object) -> None:
-        if self == tmp_path / "out":
-            raise OSError("permission denied")
-
-    monkeypatch.setattr(Path, "mkdir", raise_os_error)
+    output_file.write_text("not a folder", encoding="utf-8")
 
     errors = validate_conversion_form(
         input_path=str(input_path),
-        output_dir=str(tmp_path / "out"),
+        output_dir=str(output_file),
         target_format="jpg",
         quality=92,
         resize_width=0,
         resize_height=0,
     )
 
-    assert any("Output folder cannot be created:" in error for error in errors)
+    assert f"Output шлях не є папкою: {output_file}" in errors
 
 
 def test_validate_conversion_form_rejects_unsupported_format(
@@ -108,7 +105,7 @@ def test_validate_conversion_form_rejects_unsupported_format(
         resize_height=0,
     )
 
-    assert "Unsupported target format: gif" in errors
+    assert "Непідтримуваний цільовий формат: gif" in errors
 
 
 def test_validate_conversion_form_rejects_invalid_quality(
@@ -126,7 +123,7 @@ def test_validate_conversion_form_rejects_invalid_quality(
         resize_height=0,
     )
 
-    assert "Quality must be between 1 and 100." in errors
+    assert "Якість має бути від 1 до 100." in errors
 
 
 def test_validate_conversion_form_rejects_negative_resize_values(
@@ -144,5 +141,88 @@ def test_validate_conversion_form_rejects_negative_resize_values(
         resize_height=-2,
     )
 
+    assert "Ширина не може бути від'ємною." in errors
+    assert "Висота не може бути від'ємною." in errors
+
+
+@pytest.mark.parametrize(
+    ("language", "expected_messages"),
+    [
+        (
+            "uk",
+            [
+                "Input шлях обов'язковий.",
+                "Output папка обов'язкова.",
+                "Цільовий формат обов'язковий.",
+                "Якість має бути від 1 до 100.",
+                "Ширина не може бути від'ємною.",
+                "Висота не може бути від'ємною.",
+            ],
+        ),
+        (
+            "en",
+            [
+                "Input path is required.",
+                "Output folder is required.",
+                "Target format is required.",
+                "Quality must be between 1 and 100.",
+                "Resize width cannot be negative.",
+                "Resize height cannot be negative.",
+            ],
+        ),
+    ],
+)
+def test_validate_conversion_form_localizes_common_errors(
+    language: str,
+    expected_messages: list[str],
+) -> None:
+    errors = validate_conversion_form(
+        input_path="",
+        output_dir="",
+        target_format="",
+        quality=0,
+        resize_width=-1,
+        resize_height=-2,
+        language=language,
+    )
+
+    for message in expected_messages:
+        assert message in errors
+
+
+def test_validate_conversion_form_returns_english_messages() -> None:
+    errors = validate_conversion_form(
+        input_path="",
+        output_dir="",
+        target_format="gif",
+        quality=101,
+        resize_width=-1,
+        resize_height=-2,
+        language="en",
+    )
+
+    assert "Input path is required." in errors
+    assert "Output folder is required." in errors
+    assert "Unsupported target format: gif" in errors
+    assert "Quality must be between 1 and 100." in errors
     assert "Resize width cannot be negative." in errors
     assert "Resize height cannot be negative." in errors
+
+
+def test_validate_conversion_form_falls_back_to_default_language() -> None:
+    errors = validate_conversion_form(
+        input_path="",
+        output_dir="",
+        target_format="",
+        quality=0,
+        resize_width=-1,
+        resize_height=-2,
+        language="de",
+    )
+
+    assert "Input шлях обов'язковий." in errors
+    assert "Output папка обов'язкова." in errors
+    assert "Цільовий формат обов'язковий." in errors
+    assert "Якість має бути від 1 до 100." in errors
+    assert "Ширина не може бути від'ємною." in errors
+    assert "Висота не може бути від'ємною." in errors

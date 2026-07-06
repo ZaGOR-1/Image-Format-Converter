@@ -95,3 +95,56 @@ def test_conversion_service_emits_log_messages(tmp_path: Path) -> None:
     assert any(message.startswith("Processing file 1/1:") for message in messages)
     assert any(message.startswith("Output path:") for message in messages)
     assert "Converted 1/1: source.png" in messages
+
+
+def test_conversion_service_excludes_output_dir_inside_recursive_input(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    output_dir = input_dir / "out"
+    output_dir.mkdir(parents=True)
+    Image.new("RGB", (8, 8), (10, 20, 30)).save(input_dir / "source.png")
+    Image.new("RGB", (8, 8), (30, 20, 10)).save(output_dir / "old.png")
+
+    result = ConversionService().run(
+        ConversionOptions(
+            input_path=input_dir,
+            output_dir=output_dir,
+            target_format="jpg",
+            recursive=True,
+        ),
+    )
+
+    assert result.total_found == 1
+    assert result.converted == 1
+    assert (output_dir / "source.jpg").exists()
+    assert not (output_dir / "old.jpg").exists()
+
+
+def test_conversion_service_can_cancel_between_files(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    Image.new("RGB", (8, 8), (10, 20, 30)).save(input_dir / "a.png")
+    Image.new("RGB", (8, 8), (30, 20, 10)).save(input_dir / "b.png")
+    cancel_checks = 0
+    messages: list[str] = []
+
+    def should_cancel() -> bool:
+        nonlocal cancel_checks
+        cancel_checks += 1
+        return cancel_checks > 1
+
+    result = ConversionService().run(
+        ConversionOptions(
+            input_path=input_dir,
+            output_dir=tmp_path / "out",
+            target_format="jpg",
+        ),
+        on_log=messages.append,
+        should_cancel=should_cancel,
+    )
+
+    assert result.total_found == 2
+    assert result.converted == 1
+    assert result.skipped == 1
+    assert "Conversion cancelled. Skipped 1 file(s)." in messages

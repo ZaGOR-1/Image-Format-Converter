@@ -4,9 +4,8 @@
 
 You are working on a Python image conversion MVP project called **Image Format Converter**.
 
-The goal is to build a clean, maintainable, local tool for converting image formats. MVP v1 focused on the CLI. MVP v2 adds a simple PySide6 GUI on top of the same conversion core. The architecture must be prepared for future expansion to audio, video, and document converters.
+The goal is to build a clean, maintainable, local tool for converting image formats. The current MVP includes the original CLI plus a simple PySide6 GUI on top of the same conversion core. The architecture must be prepared for future expansion to audio, video, and document converters.
 
-Do not build a GUI in MVP v1.
 Do not add web server functionality.
 Do not add a database.
 Do not overcomplicate the project.
@@ -51,7 +50,7 @@ Allowed RAW output formats:
 * `.tif`
 * `.tiff`
 
-RAW to WEBP is not supported in MVP v1.
+RAW to WEBP is not supported in the current MVP.
 
 ### Regular image formats
 
@@ -91,7 +90,6 @@ Use:
 
 Do not use:
 
-* GUI frameworks in MVP v1
 * GUI frameworks other than `PySide6` in MVP v2
 * Flask, FastAPI, Django, or any web framework
 * Database engines
@@ -126,9 +124,11 @@ app/
     registry.py
   gui/
     __init__.py
+    i18n.py
     main_window.py
     conversion_worker.py
     options_builder.py
+    settings.py
     validation.py
 tests/
   test_path_utils.py
@@ -181,6 +181,34 @@ RAW behavior in GUI:
 * `python -m app.gui_main` must not require top-level `rawpy` import.
 * Regular JPG/PNG/WEBP/TIFF conversion must work even if `rawpy` is unavailable.
 * RAW conversion without `rawpy` must show a clear error in the GUI log/result instead of crashing the app.
+
+---
+
+## GUI Localization Requirements
+
+The PySide6 GUI supports Ukrainian and English localization.
+
+Rules for GUI text changes:
+
+* All new GUI user-facing strings must go through `app/gui/i18n.py`.
+* Do not write hardcoded UI text directly into widgets, dialogs, status messages, validation messages, placeholders, or GUI-generated logs.
+* When adding a new GUI element, add translation keys for both `uk` and `en`.
+* Default GUI language is `uk`.
+* Use `QSettings`-based persistence from `app/gui/settings.py` for the selected GUI language.
+* GUI language switching must not clear input path, output path, log, progress, or selected format values.
+* CLI localization is not part of the current task.
+* Core conversion modules must not depend on GUI language or GUI i18n helpers.
+* Do not translate technical format values such as `jpg`, `jpeg`, `png`, `webp`, `tif`, and `tiff`.
+* Core service logs and `JobResult.summary()` may remain in English in this MVP.
+
+When changing GUI localization behavior, update focused tests in:
+
+```text
+tests/test_gui_i18n.py
+tests/test_gui_main_window.py
+tests/test_gui_settings.py
+tests/test_gui_validation.py
+```
 
 ---
 
@@ -604,7 +632,7 @@ The MVP is complete when:
 * Recursive folder conversion works.
 * JPG/PNG/WEBP/TIF/TIFF regular conversion works.
 * RAW to JPG/PNG/TIF/TIFF conversion logic is implemented.
-* RAW to WEBP is rejected in MVP v1.
+* RAW to WEBP is rejected in the current MVP.
 * EXIF Orientation is normalized for regular images.
 * PNG with alpha channel converts to JPG with an RGB result.
 * Existing files are handled safely.
@@ -621,9 +649,8 @@ Do not implement these now, but keep architecture ready for them:
 
 ### GUI
 
-Future GUI may use:
+The current GUI uses PySide6. Future GUI work may add:
 
-* PySide6
 * file picker
 * drag-and-drop
 * progress bar
@@ -675,5 +702,5 @@ When editing this project:
 * If changing dependencies, update `requirements.txt`.
 * Do not remove useful error handling.
 * Do not remove type hints.
-* Do not add GUI code to MVP v1.
-* Do not add audio/video conversion to MVP v1 unless explicitly requested.
+* Do not add GUI frameworks other than PySide6 unless explicitly requested.
+* Do not add audio/video conversion unless explicitly requested.

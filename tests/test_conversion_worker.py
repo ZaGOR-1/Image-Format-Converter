@@ -26,8 +26,16 @@ class FakeService:
         self.result = result or JobResult(total_found=1, converted=1)
         self.calls: list[ConversionOptions] = []
 
-    def run(self, options, on_progress=None, on_log=None):  # noqa: ANN001, ANN201
+    def run(  # noqa: ANN001, ANN201
+        self,
+        options,
+        on_progress=None,
+        on_log=None,
+        should_cancel=None,
+    ):
         self.calls.append(options)
+        assert should_cancel is not None
+        assert should_cancel() is False
         if on_log is not None:
             on_log("Found 1 supported file(s).")
         if on_progress is not None:
@@ -36,7 +44,13 @@ class FakeService:
 
 
 class FailingService:
-    def run(self, options, on_progress=None, on_log=None):  # noqa: ANN001, ANN201
+    def run(  # noqa: ANN001, ANN201
+        self,
+        options,
+        on_progress=None,
+        on_log=None,
+        should_cancel=None,
+    ):
         raise RuntimeError("service exploded")
 
 
@@ -86,3 +100,16 @@ def test_conversion_worker_emits_failed_for_unexpected_exception() -> None:
 
     assert failures == ["service exploded"]
     assert finished == []
+
+
+def test_conversion_worker_cancel_request_sets_cancel_state() -> None:
+    _qt_app()
+    options = ConversionOptions(
+        input_path=Path("input.png"),
+        output_dir=Path("out"),
+        target_format="jpg",
+    )
+    worker = ConversionWorker(FakeService(), options)
+    worker.request_cancel()
+
+    assert worker.is_cancel_requested() is True

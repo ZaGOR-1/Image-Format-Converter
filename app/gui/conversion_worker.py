@@ -26,6 +26,7 @@ class ConversionWorker(QObject):
         super().__init__()
         self.service = service
         self.options = options
+        self._cancel_requested = False
 
     @Slot()
     def run(self) -> None:
@@ -35,12 +36,22 @@ class ConversionWorker(QObject):
                 self.options,
                 on_progress=self._on_progress,
                 on_log=self._on_log,
+                should_cancel=self.is_cancel_requested,
             )
         except Exception as exc:  # noqa: BLE001 - protect the GUI thread boundary.
             self.failed.emit(str(exc))
             return
 
         self.finished.emit(result)
+
+    @Slot()
+    def request_cancel(self) -> None:
+        """Ask the worker to stop before starting the next file."""
+        self._cancel_requested = True
+
+    def is_cancel_requested(self) -> bool:
+        """Return whether the user asked to cancel this conversion run."""
+        return self._cancel_requested
 
     def _on_progress(self, current: int, total: int, path: Path) -> None:
         self.progress_changed.emit(current, total, str(path))

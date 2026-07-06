@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+import warnings
 
 from PIL import Image, ImageOps
 
@@ -56,20 +57,29 @@ class ImageConverter(BaseConverter):
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with Image.open(input_path) as image:
-            prepared = ImageOps.exif_transpose(image)
-            prepared = _resize_image(
-                prepared,
-                width=resize_width,
-                height=resize_height,
-            )
-            prepared = _prepare_for_output(prepared, output_format)
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(input_path) as image:
+                    prepared = ImageOps.exif_transpose(image)
+                    prepared = _resize_image(
+                        prepared,
+                        width=resize_width,
+                        height=resize_height,
+                    )
+                    prepared = _prepare_for_output(prepared, output_format)
 
-            save_options: dict[str, Any] = {"format": PIL_SAVE_FORMATS[output_format]}
-            if output_format in QUALITY_FORMATS:
-                save_options["quality"] = quality
+                    save_options: dict[str, Any] = {
+                        "format": PIL_SAVE_FORMATS[output_format]
+                    }
+                    if output_format in QUALITY_FORMATS:
+                        save_options["quality"] = quality
 
-            prepared.save(output_path, **save_options)
+                    prepared.save(output_path, **save_options)
+        except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+            raise ValueError(
+                "Image is too large or potentially unsafe to process."
+            ) from exc
 
 
 def _prepare_for_output(image: Image.Image, output_format: str) -> Image.Image:

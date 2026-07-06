@@ -109,3 +109,16 @@ def test_invalid_quality_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="quality must be between 1 and 100"):
         ImageConverter().convert(input_path, output_path, {"quality": 101})
+
+
+def test_decompression_bomb_error_is_reported_clearly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = tmp_path / "huge.png"
+    output_path = tmp_path / "converted.jpg"
+    Image.new("RGB", (2, 2), (10, 20, 30)).save(input_path)
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 1)
+
+    with pytest.raises(ValueError, match="too large or potentially unsafe"):
+        ImageConverter().convert(input_path, output_path, {})

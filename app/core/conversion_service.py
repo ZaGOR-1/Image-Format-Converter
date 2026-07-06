@@ -13,6 +13,7 @@ from app.core.path_utils import build_output_path
 
 ProgressCallback = Callable[[int, int, Path], None]
 LogCallback = Callable[[str], None]
+CancelCallback = Callable[[], bool]
 
 
 class ConversionService:
@@ -26,15 +27,26 @@ class ConversionService:
         options: ConversionOptions,
         on_progress: ProgressCallback | None = None,
         on_log: LogCallback | None = None,
+        should_cancel: CancelCallback | None = None,
     ) -> JobResult:
         """Run a conversion batch and return the aggregate result."""
-        input_files = scan_files(options.input_path, recursive=options.recursive)
+        input_files = scan_files(
+            options.input_path,
+            recursive=options.recursive,
+            exclude_dirs=[options.output_dir],
+        )
         result = JobResult(total_found=len(input_files))
 
         _emit(on_log, f"Found {result.total_found} supported file(s).")
 
         converter_options = _build_converter_options(options)
         for index, input_file in enumerate(input_files, start=1):
+            if should_cancel is not None and should_cancel():
+                skipped = len(input_files) - index + 1
+                result.skipped += skipped
+                _emit(on_log, f"Conversion cancelled. Skipped {skipped} file(s).")
+                break
+
             _emit(
                 on_log,
                 f"Processing file {index}/{result.total_found}: {input_file}",
@@ -81,4 +93,3 @@ def _build_converter_options(options: ConversionOptions) -> dict[str, int | None
 def _emit(on_log: LogCallback | None, message: str) -> None:
     if on_log is not None:
         on_log(message)
-

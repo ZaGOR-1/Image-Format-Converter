@@ -20,6 +20,8 @@
 - Унікальні імена вихідних файлів, якщо `--overwrite` не увімкнено.
 - Resize зі збереженням пропорцій.
 - GUI з вибором input/output, формату, quality, resize, recursive, overwrite і progress/log секціями.
+- GUI підтримує українську та англійську мову з перемиканням без перезапуску.
+- М'яке скасування batch-конвертації через кнопку `Скасувати`.
 - Lazy `rawpy`: GUI і regular conversion стартують без top-level імпорту `rawpy`; RAW-конвертація показує зрозумілу помилку, якщо `rawpy` недоступний.
 
 ## Підтримувані формати
@@ -100,9 +102,18 @@ python -m app.gui_main
 2. Виберіть output folder.
 3. Виберіть target format.
 4. Налаштуйте quality, resize, recursive, keep structure або overwrite.
-5. Натисніть `Convert`.
+5. Натисніть `Конвертувати`.
+6. За потреби натисніть `Скасувати`; поточний файл завершиться, а решта batch буде позначена як skipped.
 
 Конвертація у GUI виконується у worker thread, тому вікно не має зависати під час batch conversion. Progress і log оновлюються через callbacks із `ConversionService`.
+
+## Локалізація GUI
+
+GUI підтримує українську та англійську мову. Українська є мовою за замовчуванням.
+
+Мову можна перемикати прямо у вікні через selector `Українська / English`; перезапуск GUI не потрібен. Вибрана мова зберігається між запусками через `QSettings`.
+
+Локалізовані GUI labels, buttons, placeholders, validation messages, основні status messages і GUI-generated dialogs/logs. CLI наразі не локалізується. Core service logs і `JobResult.summary()` можуть залишатися англійськими в цьому MVP.
 
 ## CLI приклади
 
@@ -203,6 +214,12 @@ CLI help:
 python -m app.main --help
 ```
 
+Нотатки щодо майбутньої Windows EXE-збірки:
+
+```text
+docs/packaging.md
+```
+
 Структура core:
 
 - `app/converters/base.py` — `BaseConverter`.
@@ -220,7 +237,9 @@ GUI:
 - `app/gui_main.py` — entry point для PySide6 GUI.
 - `app/gui/main_window.py` — layout, validation flow і signal wiring.
 - `app/gui/conversion_worker.py` — worker для запуску `ConversionService` поза UI thread.
+- `app/gui/i18n.py` — dictionary-based GUI localization.
 - `app/gui/options_builder.py` — mapping GUI state у `ConversionOptions`.
+- `app/gui/settings.py` — persistence для GUI settings, зокрема вибраної мови.
 - `app/gui/validation.py` — validation form values.
 
 Щоб додати новий converter у майбутньому, реалізуйте `BaseConverter`, зареєструйте його в `ConverterRegistry` і додайте focused tests.

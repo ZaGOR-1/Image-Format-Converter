@@ -20,6 +20,8 @@ This MVP does not include a web server, database, audio/video/document conversio
 - Safe unique output names when `--overwrite` is not enabled.
 - Resize while preserving aspect ratio.
 - GUI controls for input/output, format, quality, resize, recursive, overwrite, progress, and logs.
+- GUI supports Ukrainian and English with live language switching.
+- Soft batch cancellation through the `Cancel` / `Скасувати` button.
 - Lazy `rawpy`: GUI and regular conversion start without a top-level `rawpy` import; RAW conversion reports a clear error if `rawpy` is unavailable.
 
 ## Supported Formats
@@ -100,9 +102,18 @@ In the GUI:
 2. Select an output folder.
 3. Choose the target format.
 4. Adjust quality, resize, recursive, keep structure, or overwrite options.
-5. Press `Convert`.
+5. Press `Convert` / `Конвертувати`.
+6. Press `Cancel` / `Скасувати` if needed; the current file finishes, and the rest of the batch is marked as skipped.
 
 GUI conversion runs in a worker thread, so the window should stay responsive during batch conversion. Progress and logs are updated through callbacks from `ConversionService`.
+
+## GUI Localization
+
+The GUI supports Ukrainian and English. Ukrainian is the default language.
+
+The language can be changed directly in the window with the `Українська / English` selector; restarting the GUI is not required. The selected language is persisted between launches with `QSettings`.
+
+GUI labels, buttons, placeholders, validation messages, main status messages, and GUI-generated dialogs/logs are localized. The CLI is not localized yet. Core service logs and `JobResult.summary()` may remain in English in this MVP.
 
 ## CLI Examples
 
@@ -203,6 +214,12 @@ CLI help:
 python -m app.main --help
 ```
 
+Notes for a future Windows EXE build:
+
+```text
+docs/packaging.md
+```
+
 Core structure:
 
 - `app/converters/base.py` defines `BaseConverter`.
@@ -220,7 +237,9 @@ GUI:
 - `app/gui_main.py` starts the PySide6 GUI.
 - `app/gui/main_window.py` contains layout, validation flow, and signal wiring.
 - `app/gui/conversion_worker.py` runs `ConversionService` outside the UI thread.
+- `app/gui/i18n.py` contains dictionary-based GUI localization.
 - `app/gui/options_builder.py` maps GUI state into `ConversionOptions`.
+- `app/gui/settings.py` persists GUI settings, including the selected language.
 - `app/gui/validation.py` validates form values.
 
 To add a new converter later, implement `BaseConverter`, register it in `ConverterRegistry`, and add focused tests.
